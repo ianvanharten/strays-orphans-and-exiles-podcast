@@ -42,7 +42,7 @@ export async function getAllEpisodes() {
         published: number(),
         description: string(),
         itunes_episode: optional(number()),
-        itunes_episodeType: string(),
+        itunes_episodeType: optional(string()),
         itunes_image: optional(object({ href: optional(string()) })),
         enclosures: array(
           object({
@@ -54,9 +54,22 @@ export async function getAllEpisodes() {
     )
   });
 
-  // @ts-expect-error
-  let feed = (await parseFeed.parse(starpodConfig.rssFeed)) as Show;
-  let items = parse(FeedSchema, feed).items;
+  let feed;
+  try {
+    // @ts-expect-error
+    feed = (await parseFeed.parse(starpodConfig.rssFeed)) as Show;
+  } catch (error) {
+    console.error('Error parsing feed:', error);
+    throw error;
+  }
+
+  let items;
+  try {
+    items = parse(FeedSchema, feed).items;
+  } catch (error) {
+    console.error('Error parsing feed schema:', error);
+    throw error;
+  }
 
   let episodes: Array<Episode> = items
     .filter((item) => item.itunes_episodeType !== 'trailer')
@@ -81,7 +94,7 @@ export async function getAllEpisodes() {
           content: description,
           description: truncate(htmlToText(description), 260),
           episodeImage: itunes_image?.href,
-          episodeNumber,
+          episodeNumber: episodeNumber || '',
           episodeSlug,
           published,
           audio: enclosures.map((enclosure) => ({
